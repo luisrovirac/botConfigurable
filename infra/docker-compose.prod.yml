@@ -6,12 +6,12 @@
 
 name: botconfigurable
 
+# api, migrate y worker usan la MISMA imagen. Solo `api` la construye (scripts/deploy.sh hace
+# `build` y luego `up --no-build`): si los tres la construyen a la vez, Compose v5.5+ falla
+# con "image already exists".
 x-backend: &backend
-  build:
-    context: ..
-    dockerfile: infra/Dockerfile.api
-    target: runtime
   image: botconfigurable-api:prod
+  pull_policy: never
   env_file:
     - ../.env.production
   environment: &backend-env
@@ -58,6 +58,10 @@ services:
 
   api:
     <<: *backend
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+      target: runtime
     depends_on:
       migrate:
         condition: service_completed_successfully

@@ -20,8 +20,11 @@ fi
 WEB_PORT=$(grep -E '^WEB_PORT=' "$ENV_FILE" | cut -d= -f2)
 WEB_PORT=${WEB_PORT:-8030}
 
-echo "== Construyendo y levantando (la primera vez tarda unos minutos)"
-$COMPOSE up -d --build --remove-orphans --wait
+echo "== Construyendo imagenes (la primera vez tarda unos minutos)"
+$COMPOSE build api web
+
+echo "== Levantando (migraciones y seed primero, luego api, worker y web)"
+$COMPOSE up -d --no-build --remove-orphans --wait
 
 echo "== Migraciones y seed"
 $COMPOSE logs --no-log-prefix migrate | tail -n 5
