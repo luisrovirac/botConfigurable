@@ -1,0 +1,26 @@
+# Servidor web de produccion: sirve el panel y reenvia la API.
+# Cloudflare (tunel) termina el HTTPS y llega aqui por HTTP en 127.0.0.1:WEB_PORT.
+:80 {
+	encode gzip
+
+	header {
+		X-Content-Type-Options nosniff
+		X-Frame-Options DENY
+		Referrer-Policy strict-origin-when-cross-origin
+		-Server
+	}
+
+	# API (incluye el webhook de Meta, que debe llegar con el cuerpo intacto para la firma).
+	# /docs y /metrics no se publican.
+	@api path /api/* /healthz /readyz
+	handle @api {
+		reverse_proxy api:8000
+	}
+
+	# Panel (aplicacion de una sola pagina).
+	handle {
+		root * /srv
+		try_files {path} /index.html
+		file_server
+	}
+}

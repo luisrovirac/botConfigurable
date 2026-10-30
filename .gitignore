@@ -28,3 +28,6 @@ Thumbs.db
 
 # Respaldos temporales
 backup_pre_bat/
+
+# Paquete para copiar al servidor (scripts\package.bat)
+botconfigurable.tar.gz

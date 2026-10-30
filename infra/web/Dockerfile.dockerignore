@@ -1,0 +1,6 @@
+# Solo el panel y la configuracion de Caddy entran a esta imagen.
+*
+!apps/web
+!infra/web
+apps/web/node_modules
+apps/web/dist
