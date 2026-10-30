@@ -1,0 +1,25 @@
+# Flujo demo de la Fase 0: un menu y dos respuestas.
+# Variables disponibles en los textos: {nombre} (nombre de perfil de WhatsApp del contacto).
+# Lo carga packs/loader.py (validado con flows/definition.py). Ruta: FLOW_PATH en .env.
+id: demo
+version: "1"
+start: menu
+nodes:
+  menu:
+    type: menu
+    text: |-
+      Hola {nombre}, soy el asistente virtual. Escribe el numero de una opcion:
+      1. Horario de atencion
+      2. Ubicacion
+    options:
+      "1": horario
+      "2": ubicacion
+    invalid_text: "No entendi tu respuesta."
+  horario:
+    type: answer
+    text: "Atendemos de lunes a viernes de 9:00 a 18:00 y sabados de 9:00 a 13:00."
+    next: menu
+  ubicacion:
+    type: answer
+    text: "Estamos en Av. Principal 123, Centro. Te esperamos."
+    next: menu

@@ -40,3 +40,15 @@ def test_whatsapp_secrets_are_required(missing: str) -> None:
 def test_unknown_environment_is_rejected() -> None:
     with pytest.raises(ValidationError):
         _settings(environment="prod", secret_key=STRONG_KEY)
+
+
+def test_real_send_mode_requires_access_token() -> None:
+    with pytest.raises(ValidationError, match="WHATSAPP_ACCESS_TOKEN"):
+        _settings(secret_key=STRONG_KEY, whatsapp_send_mode="real")
+    real = _settings(secret_key=STRONG_KEY, whatsapp_send_mode="real", whatsapp_access_token="t")
+    assert real.whatsapp_send_mode == "real"
+
+
+def test_keyword_lists_are_normalized() -> None:
+    settings = _settings(secret_key=STRONG_KEY, opt_out_keywords=" baja, Stop ,,")
+    assert settings.opt_out_keyword_set == frozenset({"BAJA", "STOP"})

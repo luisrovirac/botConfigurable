@@ -1,7 +1,7 @@
 @echo off
 REM botConfigurable.bat - Arranca el entorno LOCAL de botConfigurable:
-REM   - Docker Desktop + contenedores: api (FastAPI, se recarga sola al guardar), PostgreSQL, Redis
-REM   - Rol bot_app, base de tests y migraciones (alembic upgrade head)
+REM   - Docker Desktop + contenedores: api y worker (se recargan solos al guardar), PostgreSQL
+REM   - Rol bot_app, base de tests, migraciones (alembic upgrade head) y datos demo (seed)
 REM   - Frontend React/Vite en modo desarrollo (recarga sola al guardar)
 REM   - Navegador con el frontend y la documentacion de la API (/docs)
 REM   - cmd en la raiz para git y VS Code
@@ -12,10 +12,11 @@ REM   Frontend http://localhost:5173
 REM   Postgres localhost:5442          (bases botconfigurable y botconfigurable_test)
 REM            app: bot_app / bot_app_dev (sin privilegios, sujeto a RLS)
 REM            dueno/migraciones: user / password
-REM   Redis    localhost:6389
 REM
+REM Acceso al panel: admin@demo.local / demo-admin-2026 (lo crea scripts\seed.py)
+REM Simular mensajes de WhatsApp: scripts\simulate.bat "Hola"   (sin credenciales de Meta)
 REM Tests, lint y tipos: scripts\test.bat   Apagar: scripts\dev-stop.bat   Logs: scripts\dev-logs.bat
-REM Opcionales: worker (Etapa 2) y MinIO -> docker compose --profile worker --profile storage up -d
+REM Opcional: MinIO -> docker compose --profile storage up -d
 
 set ROOT=C:\Users\User\Projects\SaxNew\botConfigurable
 set WEB=%ROOT%\apps\web
@@ -61,6 +62,8 @@ echo.
 echo Listo. Entorno botConfigurable iniciado.
 echo   Frontend  http://localhost:%WEB_PORT%
 echo   API docs  http://localhost:%API_PORT%/docs
+echo   Acceso    admin@demo.local / demo-admin-2026
+echo   Probar    scripts\simulate.bat "Hola"   (simula un cliente de WhatsApp)
 timeout /t 8 >nul
 exit /b
 
@@ -77,10 +80,10 @@ docker info >nul 2>&1
 if errorlevel 1 goto waitdocker
 :dockerok
 
-REM .env local: se crea desde .env.example apuntando a los contenedores db y redis.
+REM .env local: se crea desde .env.example apuntando al contenedor db.
 if exist "%ROOT%\.env" goto envok
 echo Creando .env local a partir de .env.example...
-powershell -NoProfile -Command "(Get-Content '%ROOT%\.env.example') -replace '@localhost:5432', '@db:5432' -replace 'redis://localhost:6379', 'redis://redis:6379' -replace '^SECRET_KEY=.*', ('SECRET_KEY=' + [guid]::NewGuid().ToString('N')) | Set-Content -Encoding ascii '%ROOT%\.env'"
+powershell -NoProfile -Command "(Get-Content '%ROOT%\.env.example') -replace '@localhost:5432', '@db:5432' -replace '^SECRET_KEY=.*', ('SECRET_KEY=' + [guid]::NewGuid().ToString('N')) | Set-Content -Encoding ascii '%ROOT%\.env'"
 :envok
 REM .env de antes del rol bot_app: la app se conectaba como superusuario.
 findstr /b /c:"DATABASE_OWNER_URL=" "%ROOT%\.env" >nul
@@ -90,7 +93,7 @@ powershell -NoProfile -Command "$f='%ROOT%\.env'; (Get-Content $f) | ForEach-Obj
 :envrole
 
 REM Si un puerto ya esta ocupado por otro proceso, avisar y esperar.
-for %%P in (%API_PORT% %DB_PORT% %REDIS_PORT%) do call :chkport %%P
+for %%P in (%API_PORT% %DB_PORT%) do call :chkport %%P
 goto portsok
 
 :chkport
@@ -106,8 +109,8 @@ pause
 goto chkport
 
 :portsok
-echo Levantando contenedores (api, db, redis)...
-%COMPOSE% up -d --build
+echo Levantando contenedores (api, db)...
+%COMPOSE% up -d --build db api
 if errorlevel 1 (
   echo No se pudieron levantar los contenedores. Revisa los errores de arriba.
   goto :eof
@@ -127,12 +130,20 @@ echo Aplicando migraciones (alembic upgrade head)...
 %COMPOSE% exec -T api alembic upgrade head
 if errorlevel 1 echo ATENCION: las migraciones fallaron. Revisa el error de arriba.
 
+echo Cargando datos demo (inquilino, numero de WhatsApp y usuario admin)...
+%COMPOSE% exec -T api python scripts/seed.py --demo
+if errorlevel 1 echo ATENCION: el seed fallo. Revisa el error de arriba.
+
+REM El worker arranca despues de migrar: necesita las tablas y funciones al dia.
+echo Levantando el worker...
+%COMPOSE% up -d worker
+
 echo.
 echo Servicios arriba. API: http://localhost:%API_PORT%/docs
-echo La API se recarga sola al guardar cambios en apps\.
-echo Mostrando logs de la API (Ctrl+C para dejar de verlos; los contenedores siguen):
+echo La API y el worker se recargan solos al guardar cambios en apps\.
+echo Mostrando logs de la API y el worker (Ctrl+C para dejar de verlos; los contenedores siguen):
 echo.
-%COMPOSE% logs -f --tail 50 api
+%COMPOSE% logs -f --tail 50 api worker
 goto :eof
 
 REM ===================== Frontend (Vite) =====================

@@ -1,11 +1,7 @@
-from fastapi import APIRouter, Depends, Request, Response, status
-from redis.asyncio import Redis
-from redis.exceptions import RedisError
+from fastapi import APIRouter, Request, Response, status
 from sqlalchemy import text
 from sqlalchemy.exc import SQLAlchemyError
-from sqlalchemy.ext.asyncio import AsyncSession
-
-from api.deps import get_session
+from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 router = APIRouter(tags=["salud"])
 
@@ -17,31 +13,19 @@ async def healthz() -> dict[str, str]:
 
 
 @router.get("/readyz")
-async def readyz(
-    request: Request, response: Response, session: AsyncSession = Depends(get_session)
-) -> dict[str, str]:
-    """Listo para recibir trafico: la base y Redis responden."""
-    checks = {
-        "database": await _check_database(session),
-        "redis": await _check_redis(request.app.state.redis),
-    }
-    ready = all(result == "ok" for result in checks.values())
+async def readyz(request: Request, response: Response) -> dict[str, str]:
+    """Listo para recibir trafico: la base de datos responde."""
+    database = await _check_database(request.app.state.session_factory)
+    ready = database == "ok"
     if not ready:
         response.status_code = status.HTTP_503_SERVICE_UNAVAILABLE
-    return {"status": "ready" if ready else "not_ready", **checks}
+    return {"status": "ready" if ready else "not_ready", "database": database}
 
 
-async def _check_database(session: AsyncSession) -> str:
+async def _check_database(session_factory: async_sessionmaker[AsyncSession]) -> str:
     try:
-        await session.execute(text("SELECT 1"))
-    except SQLAlchemyError as exc:
-        return f"error: {type(exc).__name__}"
-    return "ok"
-
-
-async def _check_redis(redis: Redis) -> str:
-    try:
-        await redis.ping()
-    except (RedisError, OSError) as exc:
+        async with session_factory() as session:
+            await session.execute(text("SELECT 1"))
+    except (SQLAlchemyError, OSError) as exc:
         return f"error: {type(exc).__name__}"
     return "ok"

@@ -3,8 +3,8 @@
 > **Estado (2026-10-30):** el proyecto todavía no está listo para producción. Faltan:
 > - El compose de producción.
 > - Caddy y cloudflared como servicios.
-> - El worker con envío real (Etapa 2).
-> - El seed de datos.
+> - Tokens de Meta por cuenta, cifrados.
+> - Revocación de refresh tokens.
 >
 > Ver la sección "Transversal" de `docs/05-plan-mejoras.md`. Esta guía describe lo que existe
 > hoy y marca lo que está pendiente.
@@ -52,15 +52,25 @@ y recarga sola. *Pendiente:* `infra/docker-compose.prod.yml`.
    docker compose -f infra/docker-compose.yml exec -T api alembic upgrade head
    ```
 
-*Pendiente (Etapa 2):* `scripts/seed.py --demo` (inquilino, cuenta de canal y usuario admin).
+3. Datos iniciales (idempotente):
+   ```bash
+   docker compose -f infra/docker-compose.yml exec -T api python scripts/seed.py --demo
+   ```
+   Crea:
+   - el inquilino `demo`;
+   - el número `SEED_PHONE_NUMBER_ID`;
+   - el admin `SEED_ADMIN_EMAIL` / `SEED_ADMIN_PASSWORD`.
+
+   En producción, cambia la contraseña por defecto.
 
 ## 4. Webhook de Meta
-- URL: `https://tu-dominio.com/webhook/whatsapp`
+- URL: `https://tu-dominio.com/api/v1/webhook/whatsapp`
 - Verify Token: el valor de `WHATSAPP_VERIFY_TOKEN`.
 - Suscribirse a `messages`.
 
-*Pendiente (Etapa 2):* hoy todos los mensajes van al inquilino `WHATSAPP_DEFAULT_TENANT_ID`. La
-Etapa 2 resuelve el inquilino por `channel_account` (`phone_number_id`).
+El inquilino de cada mensaje se resuelve por el `phone_number_id` registrado en
+`channel_account`. Un número no registrado se acepta con 200 y se ignora (queda en el log).
+Para enviar de verdad: `WHATSAPP_SEND_MODE=real` y `WHATSAPP_ACCESS_TOKEN`.
 
 Túnel de prueba (sin dominio propio):
 ```bash
@@ -78,7 +88,7 @@ npm run build   # genera dist/
 ## 6. Verificación
 ```bash
 curl http://localhost:8010/healthz   # proceso vivo
-curl http://localhost:8010/readyz    # base y Redis responden (503 si no)
+curl http://localhost:8010/readyz    # la base responde (503 si no)
 curl http://localhost:8010/metrics
 ```
 

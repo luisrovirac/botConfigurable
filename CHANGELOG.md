@@ -1,5 +1,56 @@
 # Changelog
 
+## [0.2.0] - Etapa 2: Fase 0 real (2026-10-30)
+
+Criterio de aceptación de la Fase 0 cumplido y probado en `tests/e2e/test_fase0.py`:
+- Un mensaje recibe respuesta y aparece en el inbox.
+- Reenviar el webhook no duplica nada.
+- Fuera de la ventana de 24 h la respuesta queda como `blocked_window`.
+
+Validado con el simulador; falta la prueba con WhatsApp real, a la espera de credenciales.
+Decisiones en el ADR 0005.
+
+### Agregado
+- **Webhook:**
+  - Resuelve el inquilino por el `phone_number_id` de Meta (tabla `channel_account`).
+  - Guarda en una cola (`webhook_event`) y responde 200 enseguida.
+  - Debounce por remitente.
+  - Avisos de entrega en `message_status_event`; el estado del mensaje solo avanza.
+- **Worker real:**
+  - Bucle con `SKIP LOCKED`, lock por conversación y apagado ordenado.
+  - Healthcheck por latido; en desarrollo se reinicia solo al guardar.
+- **Flujos:**
+  - Motor de máquina de estados con nodos `menu` y `answer` (Strategy).
+  - Definición en YAML validada (`packs/demo/flow.yaml`) y estado en `flow_instance`.
+- **Política de envío:**
+  - Contacto en la lista de supresión: `blocked_consent`. Ventana de 24 h cerrada:
+    `blocked_window`.
+  - Palabras BAJA/STOP y ALTA/START con registro en `consent_event`.
+- **Envío:**
+  - Adaptador de WhatsApp Cloud API con reintentos y backoff.
+  - Adaptador falso (`WHATSAPP_SEND_MODE=fake`) para desarrollo sin credenciales.
+  - Reprogramación con backoff y `dead_letter` tras el máximo de intentos.
+- **Login y API:**
+  - Login real (argon2id, JWT con `tenant_id` y `role`), refresh y `/auth/me`.
+  - Inbox de solo lectura: `GET /api/v1/conversations` y `/{id}/messages`.
+- **Base de datos:** migración 0007 con funciones `SECURITY DEFINER` para resolver el inquilino
+  sin `BYPASSRLS`.
+- **Panel:** login y bandeja de conversaciones con el estado de cada mensaje, en español.
+- **Scripts:**
+  - `scripts/seed.py --demo`: inquilino, número y admin.
+  - `scripts\simulate.bat`: simulador de WhatsApp con firma real.
+- **Tests:** 120 en total, con 98,7% de cobertura, incluidos 5 E2E de la Fase 0.
+
+### Cambiado
+- Todas las rutas de negocio pasan a `/api/v1`. El webhook ahora es `/api/v1/webhook/whatsapp`.
+- El inquilino sale del token o del número de WhatsApp. Se eliminó `WHATSAPP_DEFAULT_TENANT_ID`.
+- Se quitó Redis: el debounce y los locks quedaron en Postgres. `/readyz` revisa solo la base.
+- El worker arranca por defecto y `botConfigurable.bat` lo levanta después de migrar.
+
+### Corregido
+- Logging: `add_logger_name` fallaba con `PrintLogger`; ahora usa loggers de la librería
+  estándar.
+
 ## [Sin publicar] - Etapa 1: base estándar (2026-10-30)
 
 Plan y estado: `docs/05-plan-mejoras.md`. Decisiones: ADR 0003 y ADR 0004.

@@ -7,11 +7,18 @@ import json
 from core.types import JSONDict
 
 TEST_APP_SECRET = "test-app-secret"
+TENANT_A = "tenant-a"
+TENANT_B = "tenant-b"
+PHONE_NUMBER_ID = "PHONE_ID"
 TEST_VERIFY_TOKEN = "test-verify-token"
 
 
 def whatsapp_text_payload(
-    message_id: str, sender: str = "5215550000001", body: str = "Hola", name: str | None = "Ana"
+    message_id: str,
+    sender: str = "5215550000001",
+    body: str = "Hola",
+    name: str | None = "Ana",
+    phone_number_id: str = PHONE_NUMBER_ID,
 ) -> JSONDict:
     """Payload minimo de un mensaje de texto entrante, como lo envia Meta."""
     contacts = [{"wa_id": sender, "profile": {"name": name}}] if name else []
@@ -25,7 +32,7 @@ def whatsapp_text_payload(
                         "field": "messages",
                         "value": {
                             "messaging_product": "whatsapp",
-                            "metadata": {"phone_number_id": "PHONE_ID"},
+                            "metadata": {"phone_number_id": phone_number_id},
                             "contacts": contacts,
                             "messages": [
                                 {
@@ -53,3 +60,13 @@ def signature_headers(body: bytes, app_secret: str) -> dict[str, str]:
 def signed(payload: JSONDict, app_secret: str) -> tuple[bytes, dict[str, str]]:
     body = json.dumps(payload).encode()
     return body, signature_headers(body, app_secret)
+
+
+def whatsapp_status_payload(
+    message_id: str, status: str, phone_number_id: str = PHONE_NUMBER_ID
+) -> JSONDict:
+    value = {
+        "metadata": {"phone_number_id": phone_number_id},
+        "statuses": [{"id": message_id, "status": status, "recipient_id": "5215550000001"}],
+    }
+    return {"entry": [{"changes": [{"field": "messages", "value": value}]}]}

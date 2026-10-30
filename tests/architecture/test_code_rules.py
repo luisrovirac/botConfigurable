@@ -39,10 +39,12 @@ def _sqlalchemy_imports(tree: ast.AST) -> set[str]:
 
 
 def test_only_core_creates_engines_or_session_factories() -> None:
+    """Fuera de core se pueden usar como tipos, pero no llamarlos."""
     offenders = [
         _rel(path)
         for path, tree in _modules()
-        if not _rel(path).startswith("core/") and SESSION_FACTORIES & _sqlalchemy_imports(tree)
+        if not _rel(path).startswith("core/")
+        and SESSION_FACTORIES & _sqlalchemy_imports(tree) & set(_called_names(tree))
     ]
     assert offenders == []
 

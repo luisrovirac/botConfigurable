@@ -25,17 +25,10 @@ jobs:
         options: >-
           --health-cmd "pg_isready -U user -d botconfigurable"
           --health-interval 5s --health-timeout 5s --health-retries 10
-      redis:
-        image: redis:7.4
-        ports: ["6379:6379"]
-        options: >-
-          --health-cmd "redis-cli ping"
-          --health-interval 5s --health-timeout 5s --health-retries 10
     env:
       ENVIRONMENT: test
       DATABASE_URL: postgresql+asyncpg://bot_app:bot_app_dev@localhost:5432/botconfigurable_test
       DATABASE_OWNER_URL: postgresql+asyncpg://user:password@localhost:5432/botconfigurable_test
-      REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

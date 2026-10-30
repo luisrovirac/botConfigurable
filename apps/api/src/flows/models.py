@@ -1,6 +1,6 @@
 from uuid import UUID, uuid4
 
-from sqlalchemy import ForeignKey, String, text
+from sqlalchemy import ForeignKey, String, UniqueConstraint, text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -13,6 +13,7 @@ class FlowInstance(Base, TenantMixin, TimestampMixin):
     """Estado persistido de un flujo (FSM) en una conversacion."""
 
     __tablename__ = "flow_instance"
+    __table_args__ = (UniqueConstraint("conversation_id", name="uq_flow_instance_conversation"),)
 
     id: Mapped[UUID] = mapped_column(primary_key=True, default=uuid4)
     conversation_id: Mapped[UUID] = mapped_column(ForeignKey("conversation.id"))

@@ -15,7 +15,6 @@ dependencies = [
     "httpx>=0.27.0",
     "pyjwt>=2.9.0",
     "argon2-cffi>=23.1.0",
-    "redis>=5.2.0",
     "prometheus-client>=0.21.0",
     "tenacity>=9.0.0",
     "pyyaml>=6.0.2",
@@ -63,7 +62,7 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
-mypy_path = ["apps/api/src", "apps/worker", "tests"]
+mypy_path = ["apps/api/src", "apps/worker", "tests", "scripts"]
 explicit_package_bases = true
 files = ["apps/api/src", "apps/worker", "tests", "scripts"]
 plugins = ["pydantic.mypy"]
@@ -73,7 +72,7 @@ asyncio_mode = "auto"
 asyncio_default_fixture_loop_scope = "session"
 asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
-pythonpath = ["apps/api/src", "apps/worker", "tests"]
+pythonpath = ["apps/api/src", "apps/worker", "tests", "scripts"]
 addopts = "-ra --cov --cov-report=term-missing"
 
 [tool.coverage.run]
@@ -86,12 +85,21 @@ source = [
     "apps/api/src/auth",
     "apps/api/src/api",
     "apps/api/src/messaging",
+    "apps/api/src/flows",
+    "apps/api/src/consent",
+    "apps/api/src/inbox",
+    "apps/api/src/packs",
 ]
 omit = [
-    # Adaptadores de canal y grupos: stubs hasta la Etapa 2 / Fase 7.
-    "apps/api/src/messaging/adapters/*",
+    # Stubs de fases futuras (lanzan NotImplementedError).
+    "apps/api/src/messaging/adapters/instagram.py",
+    "apps/api/src/messaging/adapters/telegram.py",
+    "apps/api/src/messaging/adapters/group_whatsapp.py",
     "apps/api/src/messaging/groups/*",
-    "apps/api/src/messaging/ports/*",
+    "apps/api/src/inbox/handoff.py",
+    "apps/api/src/packs/golden.py",
+    "apps/api/src/packs/registry.py",
+    "apps/api/src/packs/validator.py",
 ]
 
 [tool.coverage.report]

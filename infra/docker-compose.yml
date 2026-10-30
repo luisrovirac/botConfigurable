@@ -1,11 +1,10 @@
 name: botconfigurable
 
 # Entorno de DESARROLLO local. Los puertos del host se cambian con variables de entorno
-# (API_PORT, DB_PORT, REDIS_PORT, MINIO_PORT, MINIO_CONSOLE_PORT);
+# (API_PORT, DB_PORT, MINIO_PORT, MINIO_CONSOLE_PORT);
 # botConfigurable.bat los mueve para no chocar con otros proyectos locales.
 #
 # Perfiles opcionales:
-#   worker   worker de mensajeria (se activa por defecto en la Etapa 2, cuando tenga bucle real)
 #   storage  MinIO (aun no lo usa ningun codigo)
 #   tools    lint, tipos y tests: scripts\test.bat
 
@@ -19,8 +18,6 @@ x-app: &app
     - ../.env
   depends_on:
     db:
-      condition: service_healthy
-    redis:
       condition: service_healthy
 
 services:
@@ -36,6 +33,7 @@ services:
       - ../apps:/app/apps
       - ../migrations:/app/migrations
       - ../packs:/app/packs
+      - ../scripts:/app/scripts
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 30s
@@ -44,11 +42,21 @@ services:
 
   worker:
     <<: *app
-    profiles: ["worker"]
     restart: unless-stopped
-    command: ["python", "apps/worker/main.py"]
+    # En desarrollo se reinicia solo al guardar cambios en apps/ o packs/.
+    command: ["watchfiles", "--filter", "python", "python apps/worker/main.py", "apps", "packs"]
+    environment:
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ../apps:/app/apps
+      - ../packs:/app/packs
+    healthcheck:
+      # El worker actualiza este archivo en cada vuelta del bucle.
+      test: ["CMD", "python", "-c", "import os, sys, time; sys.exit(time.time() - os.path.getmtime('/tmp/worker.heartbeat') > 60)"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 20s
 
   tools:
     <<: *app
@@ -79,17 +87,6 @@ services:
       - ./db:/docker-entrypoint-initdb.d:ro
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U user -d botconfigurable"]
-      interval: 5s
-      timeout: 5s
-      retries: 10
-
-  redis:
-    image: redis:7.4
-    restart: unless-stopped
-    ports:
-      - "${REDIS_PORT:-6379}:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
       interval: 5s
       timeout: 5s
       retries: 10

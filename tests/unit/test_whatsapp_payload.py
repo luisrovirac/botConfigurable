@@ -39,6 +39,9 @@ def test_non_text_message_has_no_body() -> None:
 
 
 def test_status_only_payload_has_no_messages() -> None:
-    raw = {"entry": [{"changes": [{"value": {"statuses": [{"id": "wamid.1"}]}}]}]}
+    value = {"statuses": [{"id": "wamid.1", "status": "delivered"}]}
+    payload = WebhookPayload.model_validate({"entry": [{"changes": [{"value": value}]}]})
 
-    assert list(WebhookPayload.model_validate(raw).inbound_messages()) == []
+    assert list(payload.inbound_messages()) == []
+    (status,) = payload.status_updates()
+    assert (status.provider_message_id, status.status) == ("wamid.1", "delivered")

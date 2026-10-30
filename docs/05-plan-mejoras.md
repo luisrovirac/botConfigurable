@@ -6,13 +6,20 @@
 | Etapa | Estado |
 |---|---|
 | Etapa 1: base estándar y bugs críticos | **Completa (2026-10-30).** Ver CHANGELOG y ADR 0004 |
-| Etapa 2: Fase 0 real | Pendiente |
+| Etapa 2: Fase 0 real | **Completa (2026-10-30)**, salvo la prueba con WhatsApp real (2.9), que espera credenciales. Ver CHANGELOG 0.2.0 y ADR 0005 |
 
 Cambios respecto a lo planificado en la Etapa 1:
 - Los routers de relleno se quitaron ya en esta etapa, no en la 2.7.
 - Los permisos de `bot_app` pasaron a la migración 0006.
 - El worker y MinIO quedaron en perfiles opcionales de compose.
 - Los tests usan la base de compose en lugar de testcontainers.
+
+Cambios respecto a lo planificado en la Etapa 2:
+- No hay tabla `messaging_window`: la ventana se calcula desde el último mensaje entrante.
+- Se quitó Redis (debounce y locks en Postgres), como preveía el punto 2.3.
+- El refresh no revoca el token anterior; queda para la Fase 1 (ADR 0005).
+- Se agregaron la palabra ALTA/START (volver a recibir mensajes) y el aviso de estados de
+  entrega en el inbox.
 
 ## Contexto
 

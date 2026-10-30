@@ -7,7 +7,7 @@ cd /d "%~dp0.."
 call "%~dp0dev-ports.bat"
 set COMPOSE=docker compose -f infra\docker-compose.yml
 
-%COMPOSE% up -d --wait db redis
+%COMPOSE% up -d --wait db
 if errorlevel 1 exit /b 1
 %COMPOSE% exec -T db sh /docker-entrypoint-initdb.d/10-app-role.sh >nul
 if errorlevel 1 exit /b 1
