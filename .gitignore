@@ -1,0 +1,30 @@
+# Secretos y configuración local
+.env
+.env.*
+!.env.example
+secrets/
+
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+coverage.xml
+htmlcov/
+
+# Node / frontend
+node_modules/
+apps/web/dist/
+
+# Editores y sistema
+.vscode/
+.idea/
+*.swp
+Thumbs.db
+.DS_Store
+
+# Respaldos temporales
+backup_pre_bat/

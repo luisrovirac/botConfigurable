@@ -1,0 +1,7 @@
+conversation:
+  - user: "Necesito filtro para Nissan"
+    expect:
+      - type: tool_call
+        tool: catalog_search
+      - type: answer_template
+        has_fields: ["sku", "price"]

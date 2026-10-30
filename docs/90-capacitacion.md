@@ -1,0 +1,3 @@
+# Capacitación
+
+Guion de formación.

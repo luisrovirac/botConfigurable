@@ -1,0 +1,82 @@
+name: botconfigurable
+
+# Los puertos del host se pueden cambiar con variables de entorno
+# (API_PORT, DB_PORT, REDIS_PORT, MINIO_PORT, MINIO_CONSOLE_PORT).
+# botConfigurable.bat los mueve para no chocar con otros proyectos locales.
+services:
+  api:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    ports:
+      - "${API_PORT:-8000}:8000"
+    env_file:
+      - ../.env
+    depends_on:
+      - db
+      - redis
+    volumes:
+      - ../apps:/app/apps
+      - ../migrations:/app/migrations
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  worker:
+    build:
+      context: ..
+      dockerfile: infra/Dockerfile.api
+    command: ["python", "apps/worker/main.py"]
+    env_file:
+      - ../.env
+    depends_on:
+      - db
+      - redis
+
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_USER: user
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: botconfigurable
+      # Rol sin privilegios con el que se conecta la app (ver db/10-app-role.sh)
+      APP_DB_USER: bot_app
+      APP_DB_PASSWORD: ${APP_DB_PASSWORD:-bot_app_dev}
+    ports:
+      - "${DB_PORT:-5432}:5432"
+    volumes:
+      - pg_data:/var/lib/postgresql/data
+      - ./db:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U user"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  minio:
+    image: minio/minio
+    command: server /data --console-address ":9001"
+    ports:
+      - "${MINIO_PORT:-9000}:9000"
+      - "${MINIO_CONSOLE_PORT:-9001}:9001"
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin
+    volumes:
+      - minio_data:/data
+
+volumes:
+  pg_data:
+  minio_data:

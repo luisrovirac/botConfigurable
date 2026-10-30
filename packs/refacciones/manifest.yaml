@@ -1,0 +1,8 @@
+id: refacciones
+version: 1.0.0
+language: es
+description: Catálogo de refacciones
+checklist:
+  - golden_transcripts_ok
+  - schema_valid
+  - tools_allowed

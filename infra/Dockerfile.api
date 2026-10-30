@@ -1,0 +1,19 @@
+FROM python:3.12-slim
+
+WORKDIR /app
+
+# Instala solo las dependencias declaradas en pyproject.toml (no el paquete en
+# modo editable: el codigo aun no esta copiado en esta capa y hatchling falla).
+COPY pyproject.toml .
+RUN python -c "import tomllib; p = tomllib.load(open('pyproject.toml', 'rb'))['project']; print('\n'.join(p['dependencies'] + p['optional-dependencies']['dev']))" > /tmp/requirements.txt \
+    && pip install --no-cache-dir -r /tmp/requirements.txt
+
+COPY alembic.ini .
+COPY apps/ apps/
+COPY migrations/ migrations/
+COPY seeds/ seeds/
+COPY scripts/ scripts/
+
+ENV PYTHONPATH=/app/apps/api/src
+
+CMD ["uvicorn", "api.main:app", "--host", "0.0.0.0", "--port", "8000"]

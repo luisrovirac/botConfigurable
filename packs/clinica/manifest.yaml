@@ -1,0 +1,8 @@
+id: clinica
+version: 1.0.0
+language: es
+description: Clínica 24/7
+checklist:
+  - golden_transcripts_ok
+  - schema_valid
+  - tools_allowed
