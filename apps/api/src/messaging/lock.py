@@ -1,15 +1,16 @@
-from contextlib import asynccontextmanager
 from uuid import UUID
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 
-@asynccontextmanager
-async def conversation_lock(session: AsyncSession, conversation_id: UUID | str):
-    key = int(hash(str(conversation_id)) % (2**31))
-    await session.execute(text("SELECT pg_advisory_lock(:key)"), {"key": key})
-    try:
-        yield
-    finally:
-        await session.execute(text("SELECT pg_advisory_unlock(:key)"), {"key": key})
+async def lock_conversation(session: AsyncSession, tenant_id: str, conversation_id: UUID) -> None:
+    """Bloquea la conversacion hasta el fin de la transaccion actual.
+
+    La clave sale de hashtext() en Postgres, que es igual en todos los procesos
+    (el hash() de Python cambia en cada proceso y no serviria entre API y worker).
+    """
+    await session.execute(
+        text("SELECT pg_advisory_xact_lock(hashtext(:key))"),
+        {"key": f"{tenant_id}:{conversation_id}"},
+    )

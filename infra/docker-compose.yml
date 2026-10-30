@@ -1,23 +1,41 @@
 name: botconfigurable
 
-# Los puertos del host se pueden cambiar con variables de entorno
-# (API_PORT, DB_PORT, REDIS_PORT, MINIO_PORT, MINIO_CONSOLE_PORT).
+# Entorno de DESARROLLO local. Los puertos del host se cambian con variables de entorno
+# (API_PORT, DB_PORT, REDIS_PORT, MINIO_PORT, MINIO_CONSOLE_PORT);
 # botConfigurable.bat los mueve para no chocar con otros proyectos locales.
+#
+# Perfiles opcionales:
+#   worker   worker de mensajeria (se activa por defecto en la Etapa 2, cuando tenga bucle real)
+#   storage  MinIO (aun no lo usa ningun codigo)
+#   tools    lint, tipos y tests: scripts\test.bat
+
+x-app: &app
+  build:
+    context: ..
+    dockerfile: infra/Dockerfile.api
+    target: dev
+  image: botconfigurable-app:dev
+  env_file:
+    - ../.env
+  depends_on:
+    db:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+
 services:
   api:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.api
+    <<: *app
+    restart: unless-stopped
     ports:
       - "${API_PORT:-8000}:8000"
-    env_file:
-      - ../.env
-    depends_on:
-      - db
-      - redis
+    environment:
+      # En Windows los cambios de archivos no llegan al contenedor como eventos: sondear.
+      WATCHFILES_FORCE_POLLING: "true"
     volumes:
       - ../apps:/app/apps
       - ../migrations:/app/migrations
+      - ../packs:/app/packs
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/healthz')"]
       interval: 30s
@@ -25,18 +43,28 @@ services:
       retries: 3
 
   worker:
-    build:
-      context: ..
-      dockerfile: infra/Dockerfile.api
+    <<: *app
+    profiles: ["worker"]
+    restart: unless-stopped
     command: ["python", "apps/worker/main.py"]
-    env_file:
-      - ../.env
-    depends_on:
-      - db
-      - redis
+    volumes:
+      - ../apps:/app/apps
+
+  tools:
+    <<: *app
+    profiles: ["tools"]
+    # Todo el repo montado: ruff, mypy y pytest ven el codigo y los tests actuales.
+    volumes:
+      - ..:/app
+    environment:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql+asyncpg://bot_app:${APP_DB_PASSWORD:-bot_app_dev}@db:5432/botconfigurable_test
+      DATABASE_OWNER_URL: postgresql+asyncpg://user:password@db:5432/botconfigurable_test
+    command: ["sh"]
 
   db:
-    image: postgres:17
+    image: postgres:17.6
+    restart: unless-stopped
     environment:
       POSTGRES_USER: user
       POSTGRES_PASSWORD: password
@@ -50,23 +78,26 @@ services:
       - pg_data:/var/lib/postgresql/data
       - ./db:/docker-entrypoint-initdb.d:ro
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U user"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U user -d botconfigurable"]
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   redis:
-    image: redis:7
+    image: redis:7.4
+    restart: unless-stopped
     ports:
       - "${REDIS_PORT:-6379}:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 5
+      retries: 10
 
   minio:
-    image: minio/minio
+    image: minio/minio:RELEASE.2025-04-22T22-12-26Z
+    profiles: ["storage"]
+    restart: unless-stopped
     command: server /data --console-address ":9001"
     ports:
       - "${MINIO_PORT:-9000}:9000"

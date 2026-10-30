@@ -1,5 +1,5 @@
 @echo off
-REM Ver logs de botConfigurable
-
-cd /d %~dp0\..
-docker compose -f infra\docker-compose.yml logs -f api worker
+REM Ver logs de la API de botConfigurable (Ctrl+C para salir; los contenedores siguen).
+cd /d "%~dp0.."
+call "%~dp0dev-ports.bat"
+docker compose -f infra\docker-compose.yml logs -f --tail 100 api

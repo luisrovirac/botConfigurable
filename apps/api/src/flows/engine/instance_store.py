@@ -1,6 +1,8 @@
-class FlowInstanceStore:
-    def save(self, instance_id: str, state: dict) -> None:
-        pass
+from flows.engine.fsm import FlowState
 
-    def load(self, instance_id: str) -> dict | None:
-        return None
+
+class FlowInstanceStore:
+    """Persistencia del estado del flujo en flow_instance."""
+
+    async def save(self, state: FlowState) -> None:
+        raise NotImplementedError("Pendiente: Etapa 2, punto 2.4 (docs/05-plan-mejoras.md)")

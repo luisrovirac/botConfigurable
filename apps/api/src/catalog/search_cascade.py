@@ -1,9 +1,11 @@
-from catalog.normalizer import normalize
+from core.types import JSONDict
 
 
 class CatalogSearchCascade:
-    async def search(self, query: str) -> list[dict]:
-        qn = normalize(query)
-        # 1. exact 2. cross-ref 3. prefix 4. trigram 5. semantic 6. fitment
-        results = []
-        return results
+    """Busqueda determinista en cascada.
+
+    Orden: normalizar, exacta, referencia cruzada, prefijo, trigrama, semantica, aplicacion.
+    """
+
+    async def search(self, query: str) -> list[JSONDict]:
+        raise NotImplementedError("Pendiente: Fase 3 (docs/05-plan-mejoras.md)")

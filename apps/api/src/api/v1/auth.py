@@ -1,8 +1,14 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException, status
 
-router = APIRouter()
+router = APIRouter(tags=["auth"])
 
 
 @router.post("/auth/login")
-async def login() -> dict:
-    return {"access_token": "demo", "refresh_token": "demo"}
+async def login() -> None:
+    """Pendiente (Etapa 2, plan docs/05-plan-mejoras.md 2.7).
+
+    Antes devolvia tokens falsos; ahora responde 501 para que nadie lo confunda con un login real.
+    """
+    raise HTTPException(
+        status_code=status.HTTP_501_NOT_IMPLEMENTED, detail="Login aun no implementado"
+    )

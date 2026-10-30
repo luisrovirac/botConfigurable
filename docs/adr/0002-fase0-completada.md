@@ -3,7 +3,7 @@
 Fecha: 2026-10-27
 
 ## Estado
-Aceptado
+Reemplazado por el ADR 0003: la Fase 0 no estaba completa.
 
 ## Contexto
 Se implementa estructura base según plan maestro con todos los componentes necesarios.

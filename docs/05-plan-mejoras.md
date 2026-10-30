@@ -2,6 +2,18 @@
 
 # Plan de mejoras de botConfigurable: base estándar + Fase 0 real
 
+## Estado
+| Etapa | Estado |
+|---|---|
+| Etapa 1: base estándar y bugs críticos | **Completa (2026-10-30).** Ver CHANGELOG y ADR 0004 |
+| Etapa 2: Fase 0 real | Pendiente |
+
+Cambios respecto a lo planificado en la Etapa 1:
+- Los routers de relleno se quitaron ya en esta etapa, no en la 2.7.
+- Los permisos de `bot_app` pasaron a la migración 0006.
+- El worker y MinIO quedaron en perfiles opcionales de compose.
+- Los tests usan la base de compose en lugar de testcontainers.
+
 ## Contexto
 
 Revisé el proyecto completo: backend, infraestructura, tests y CI, y la documentación contra el código. El CHANGELOG y `docs/adr/0002-fase0-completada.md` dicen que la Fase 0 está terminada, pero el código no lo respalda:

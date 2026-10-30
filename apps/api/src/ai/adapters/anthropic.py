@@ -1,3 +1,10 @@
+from core.types import JSONDict
+
+
 class AnthropicAdapter:
-    async def complete(self, messages: list[dict], tools: list[dict] | None = None) -> dict:
-        return {"content": "", "tool_calls": []}
+    """Claude via la API de Anthropic."""
+
+    async def complete(
+        self, messages: list[JSONDict], tools: list[JSONDict] | None = None
+    ) -> JSONDict:
+        raise NotImplementedError("Pendiente: Fase 2 (docs/05-plan-mejoras.md)")

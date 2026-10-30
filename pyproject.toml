@@ -1,12 +1,8 @@
-[build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build"
-
 [project]
 name = "botconfigurable"
 version = "0.1.0"
 description = "Plataforma conversacional configurable"
-requires-python = ">=3.12"
+requires-python = ">=3.12,<3.13"
 dependencies = [
     "fastapi>=0.115.0",
     "uvicorn[standard]>=0.32.0",
@@ -21,13 +17,11 @@ dependencies = [
     "argon2-cffi>=23.1.0",
     "redis>=5.2.0",
     "prometheus-client>=0.21.0",
-    "opentelemetry-api>=1.28.0",
-    "opentelemetry-sdk>=1.28.0",
-    "opentelemetry-instrumentation-fastapi>=0.49b0",
     "tenacity>=9.0.0",
+    "pyyaml>=6.0.2",
 ]
 
-[project.optional-dependencies]
+[dependency-groups]
 dev = [
     "ruff>=0.7.0",
     "mypy>=1.13.0",
@@ -35,15 +29,33 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "pytest-cov>=6.0.0",
     "respx>=0.21.0",
-    "testcontainers>=4.8.0",
+    "types-PyYAML>=6.0.12",
 ]
+
+# Es una aplicacion, no una libreria: uv instala solo las dependencias.
+# El codigo se importa desde apps/api/src (PYTHONPATH en Docker, pythonpath en pytest).
+[tool.uv]
+package = false
 
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+src = ["apps/api/src", "apps/worker"]
+extend-exclude = ["backup_pre_bat", "apps/web"]
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "TCH"]
+
+[tool.ruff.lint.flake8-bugbear]
+# FastAPI declara dependencias como valores por defecto.
+extend-immutable-calls = ["fastapi.Depends", "fastapi.Header", "fastapi.Query"]
+
+[tool.ruff.lint.flake8-type-checking]
+# SQLAlchemy y pydantic necesitan estos tipos en tiempo de ejecucion.
+runtime-evaluated-base-classes = ["pydantic.BaseModel", "pydantic_settings.BaseSettings", "core.db.Base"]
+
+[tool.ruff.lint.per-file-ignores]
+"migrations/versions/*.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"
@@ -51,8 +63,37 @@ strict = true
 warn_return_any = true
 warn_unused_configs = true
 disallow_untyped_defs = true
+mypy_path = ["apps/api/src", "apps/worker", "tests"]
+explicit_package_bases = true
+files = ["apps/api/src", "apps/worker", "tests", "scripts"]
+plugins = ["pydantic.mypy"]
 
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
+asyncio_default_fixture_loop_scope = "session"
+asyncio_default_test_loop_scope = "session"
 testpaths = ["tests"]
-addopts = "-v --cov=apps --cov-report=term-missing"
+pythonpath = ["apps/api/src", "apps/worker", "tests"]
+addopts = "-ra --cov --cov-report=term-missing"
+
+[tool.coverage.run]
+branch = true
+# SQLAlchemy async ejecuta el codigo en greenlets: sin esto, coverage no lo ve.
+concurrency = ["greenlet", "thread"]
+# Modulos criticos con pruebas reales. Los stubs de fases futuras se suman al implementarse.
+source = [
+    "apps/api/src/core",
+    "apps/api/src/auth",
+    "apps/api/src/api",
+    "apps/api/src/messaging",
+]
+omit = [
+    # Adaptadores de canal y grupos: stubs hasta la Etapa 2 / Fase 7.
+    "apps/api/src/messaging/adapters/*",
+    "apps/api/src/messaging/groups/*",
+    "apps/api/src/messaging/ports/*",
+]
+
+[tool.coverage.report]
+fail_under = 80
+skip_empty = true

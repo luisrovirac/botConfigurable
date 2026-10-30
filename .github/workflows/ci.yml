@@ -6,19 +6,79 @@ on:
   pull_request:
     branches: [main]
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
-  test:
+  backend:
+    name: Backend (formato, lint, tipos, tests)
     runs-on: ubuntu-latest
+    services:
+      db:
+        image: postgres:17.6
+        env:
+          POSTGRES_USER: user
+          POSTGRES_PASSWORD: password
+          POSTGRES_DB: botconfigurable
+        ports: ["5432:5432"]
+        options: >-
+          --health-cmd "pg_isready -U user -d botconfigurable"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+      redis:
+        image: redis:7.4
+        ports: ["6379:6379"]
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 5s --health-timeout 5s --health-retries 10
+    env:
+      ENVIRONMENT: test
+      DATABASE_URL: postgresql+asyncpg://bot_app:bot_app_dev@localhost:5432/botconfigurable_test
+      DATABASE_OWNER_URL: postgresql+asyncpg://user:password@localhost:5432/botconfigurable_test
+      REDIS_URL: redis://localhost:6379/0
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
         with:
-          python-version: '3.12'
-      - name: Install
-        run: pip install -e ".[dev]"
-      - name: Lint
-        run: ruff check .
-      - name: Type check
-        run: mypy apps
-      - name: Tests
-        run: pytest -q
+          python-version: "3.12"
+      - uses: astral-sh/setup-uv@v6
+        with:
+          version: "0.8.4"
+          enable-cache: true
+      - name: Instalar dependencias
+        run: uv sync --frozen
+      - name: Crear rol bot_app y base de tests
+        run: sh infra/db/10-app-role.sh
+        env:
+          PGHOST: localhost
+          PGPASSWORD: password
+          POSTGRES_USER: user
+          POSTGRES_DB: botconfigurable
+          APP_DB_PASSWORD: bot_app_dev
+      - name: Formato, lint, tipos y tests
+        run: uv run sh scripts/check.sh
+
+  web:
+    name: Frontend (build)
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: apps/web
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: apps/web/package-lock.json
+      - run: npm ci
+      - run: npm run lint
+      - run: npm run build
+
+  docker:
+    name: Imagen de produccion
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Construir imagen runtime
+        run: docker build -f infra/Dockerfile.api --target runtime -t botconfigurable-api:ci .

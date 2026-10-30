@@ -1,23 +1,21 @@
 @echo off
 REM botConfigurable.bat - Arranca el entorno LOCAL de botConfigurable:
-REM   - Docker Desktop + contenedores: api (FastAPI), worker, PostgreSQL, Redis, MinIO
-REM   - Migraciones de base de datos (alembic upgrade head)
+REM   - Docker Desktop + contenedores: api (FastAPI, se recarga sola al guardar), PostgreSQL, Redis
+REM   - Rol bot_app, base de tests y migraciones (alembic upgrade head)
 REM   - Frontend React/Vite en modo desarrollo (recarga sola al guardar)
-REM   - Navegador con el frontend, la documentacion de la API (/docs) y la consola de MinIO
-REM   - cmd en la raiz para git/pytest y VS Code
+REM   - Navegador con el frontend y la documentacion de la API (/docs)
+REM   - cmd en la raiz para git y VS Code
 REM
-REM Puertos: se usan puertos distintos a los de por defecto porque 8000 y 6379
-REM ya los ocupan otros contenedores de esta PC (services-caddy, etc.).
-REM   API      http://localhost:8010   (docs: /docs, salud: /healthz)
+REM Puertos (definidos en scripts\dev-ports.bat; 8000 y 6379 ya los usan otros contenedores):
+REM   API      http://localhost:8010   (docs: /docs, salud: /healthz, listo: /readyz)
 REM   Frontend http://localhost:5173
-REM   MinIO    http://localhost:9011   (minioadmin / minioadmin)
-REM   Postgres localhost:5442          (base botconfigurable)
+REM   Postgres localhost:5442          (bases botconfigurable y botconfigurable_test)
 REM            app: bot_app / bot_app_dev (sin privilegios, sujeto a RLS)
 REM            dueno/migraciones: user / password
 REM   Redis    localhost:6389
 REM
-REM Para apagar todo: scripts\dev-stop.bat   Para ver logs: scripts\dev-logs.bat
-REM Respaldo de la version anterior: backup_pre_bat\botConfigurable.bat
+REM Tests, lint y tipos: scripts\test.bat   Apagar: scripts\dev-stop.bat   Logs: scripts\dev-logs.bat
+REM Opcionales: worker (Etapa 2) y MinIO -> docker compose --profile worker --profile storage up -d
 
 set ROOT=C:\Users\User\Projects\SaxNew\botConfigurable
 set WEB=%ROOT%\apps\web
@@ -26,13 +24,7 @@ set DOCKER_EXE=C:\Program Files\Docker\Docker\Docker Desktop.exe
 set CHROME=C:\Program Files (x86)\Google\Chrome\Application\chrome.exe
 if not exist "%CHROME%" set CHROME=C:\Program Files\Google\Chrome\Application\chrome.exe
 
-REM Puertos del host (docker-compose.yml los lee de estas variables)
-set API_PORT=8010
-set DB_PORT=5442
-set REDIS_PORT=6389
-set MINIO_PORT=9010
-set MINIO_CONSOLE_PORT=9011
-set WEB_PORT=5173
+call "%ROOT%\scripts\dev-ports.bat"
 
 REM Cada ventana vuelve a llamar a este mismo archivo con su seccion.
 if "%~1"==":services" goto services
@@ -60,17 +52,15 @@ curl -s -f -o nul http://localhost:%WEB_PORT%
 if errorlevel 1 goto waitweb
 
 if exist "%CHROME%" (
-  start "" "%CHROME%" --incognito "http://localhost:%WEB_PORT%" "http://localhost:%API_PORT%/docs" "http://localhost:%MINIO_CONSOLE_PORT%"
+  start "" "%CHROME%" --incognito "http://localhost:%WEB_PORT%" "http://localhost:%API_PORT%/docs"
 ) else (
   start "" "http://localhost:%WEB_PORT%"
   start "" "http://localhost:%API_PORT%/docs"
-  start "" "http://localhost:%MINIO_CONSOLE_PORT%"
 )
 echo.
 echo Listo. Entorno botConfigurable iniciado.
 echo   Frontend  http://localhost:%WEB_PORT%
 echo   API docs  http://localhost:%API_PORT%/docs
-echo   MinIO     http://localhost:%MINIO_CONSOLE_PORT%  (minioadmin / minioadmin)
 timeout /t 8 >nul
 exit /b
 
@@ -100,7 +90,7 @@ powershell -NoProfile -Command "$f='%ROOT%\.env'; (Get-Content $f) | ForEach-Obj
 :envrole
 
 REM Si un puerto ya esta ocupado por otro proceso, avisar y esperar.
-for %%P in (%API_PORT% %DB_PORT% %REDIS_PORT% %MINIO_PORT% %MINIO_CONSOLE_PORT%) do call :chkport %%P
+for %%P in (%API_PORT% %DB_PORT% %REDIS_PORT%) do call :chkport %%P
 goto portsok
 
 :chkport
@@ -111,12 +101,12 @@ if errorlevel 1 goto :eof
 echo.
 echo ATENCION: el puerto %1 ya esta ocupado por otro proceso (PID al final):
 netstat -ano | findstr /r /c:"TCP.*:%1 .*LISTENING"
-echo Cierralo o cambia el puerto arriba en este .bat, y pulsa una tecla para reintentar.
+echo Cierralo o cambia el puerto en scripts\dev-ports.bat, y pulsa una tecla para reintentar.
 pause
 goto chkport
 
 :portsok
-echo Levantando contenedores (api, worker, db, redis, minio)...
+echo Levantando contenedores (api, db, redis)...
 %COMPOSE% up -d --build
 if errorlevel 1 (
   echo No se pudieron levantar los contenedores. Revisa los errores de arriba.
@@ -139,10 +129,10 @@ if errorlevel 1 echo ATENCION: las migraciones fallaron. Revisa el error de arri
 
 echo.
 echo Servicios arriba. API: http://localhost:%API_PORT%/docs
-echo Tras cambiar codigo Python: %COMPOSE% restart api worker
-echo Mostrando logs de api y worker (Ctrl+C para dejar de verlos; los contenedores siguen):
+echo La API se recarga sola al guardar cambios en apps\.
+echo Mostrando logs de la API (Ctrl+C para dejar de verlos; los contenedores siguen):
 echo.
-%COMPOSE% logs -f --tail 50 api worker
+%COMPOSE% logs -f --tail 50 api
 goto :eof
 
 REM ===================== Frontend (Vite) =====================

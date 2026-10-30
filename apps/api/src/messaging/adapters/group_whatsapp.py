@@ -1,6 +1,8 @@
 class WhatsAppGroupsAdapter:
-    async def send_text(self, to: str, text: str, **kwargs) -> str:
-        return "grp_123"
+    """Grupos de WhatsApp (OBA)."""
+
+    async def send_text(self, to: str, text: str) -> str:
+        raise NotImplementedError("Pendiente: Fase 7 (docs/05-plan-mejoras.md)")
 
     def capabilities(self) -> dict[str, bool]:
         return {"templates": True, "group": True, "recipient_type": True}

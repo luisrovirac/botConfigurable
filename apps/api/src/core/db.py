@@ -1,36 +1,26 @@
-from collections.abc import AsyncGenerator
-from contextlib import asynccontextmanager
-
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+from sqlalchemy import MetaData
+from sqlalchemy.ext.asyncio import (
+    AsyncEngine,
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
 
 
 class Base(DeclarativeBase):
-    pass
+    # Nombres deterministas para indices y FK, asi las migraciones pueden referirse a ellos.
+    metadata = MetaData(
+        naming_convention={
+            "ix": "ix_%(column_0_label)s",
+            "fk": "fk_%(table_name)s_%(column_0_name)s_%(referred_table_name)s",
+        }
+    )
 
 
-engine = None
-SessionLocal: async_sessionmaker[AsyncSession] | None = None
+def create_engine(database_url: str) -> AsyncEngine:
+    return create_async_engine(database_url, pool_pre_ping=True)
 
 
-def init_db(database_url: str) -> None:
-    global engine, SessionLocal
-    engine = create_async_engine(database_url, echo=False, pool_pre_ping=True)
-    SessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-
-
-async def get_session() -> AsyncGenerator[AsyncSession, None]:
-    if SessionLocal is None:
-        raise RuntimeError("Database not initialized")
-    async with SessionLocal() as session:
-        yield session
-
-
-@asynccontextmanager
-async def tenant_session(session: AsyncSession, tenant_id: str):
-    await session.execute(text("SET LOCAL app.tenant_id = :tenant_id"), {"tenant_id": tenant_id})
-    try:
-        yield session
-    finally:
-        pass
+def create_session_factory(engine: AsyncEngine) -> async_sessionmaker[AsyncSession]:
+    return async_sessionmaker(engine, expire_on_commit=False)

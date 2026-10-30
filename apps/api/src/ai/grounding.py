@@ -1,4 +1,8 @@
+from core.types import JSONDict
+
+
 class GroundingGate:
-    def check(self, response: dict, tool_results: dict) -> bool:
-        # Verificar que IDs/precios/fechas existan en tool_results
-        return True
+    """Verifica que IDs, precios y fechas de la respuesta existan en tool_results."""
+
+    def check(self, response: JSONDict, tool_results: JSONDict) -> bool:
+        raise NotImplementedError("Pendiente: Fase 2 (docs/05-plan-mejoras.md)")

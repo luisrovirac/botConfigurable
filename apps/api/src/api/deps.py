@@ -1,26 +1,28 @@
-from collections.abc import AsyncGenerator
+"""Dependencias de FastAPI: aqui se ensamblan los servicios que usan las rutas."""
 
-from fastapi import Depends, HTTPException, Header
+from collections.abc import AsyncIterator
+
+from fastapi import Request
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from core.db import get_session
-from core.tenant import set_tenant
+from core.config import Settings
+from messaging.inbound_pipeline import InboundPipeline
 
 
-async def get_db() -> AsyncGenerator[AsyncSession, None]:
-    async for session in get_session():
+def get_settings_dep(request: Request) -> Settings:
+    settings: Settings = request.app.state.settings
+    return settings
+
+
+async def get_session(request: Request) -> AsyncIterator[AsyncSession]:
+    """Una transaccion por peticion (unidad de trabajo).
+
+    Hace commit si la ruta termina bien y rollback si lanza una excepcion.
+    Los servicios nunca hacen commit por su cuenta.
+    """
+    async with request.app.state.session_factory() as session, session.begin():
         yield session
 
 
-async def get_tenant_id(x_tenant_id: str = Header(..., alias="X-Tenant-ID")) -> str:
-    if not x_tenant_id:
-        raise HTTPException(status_code=400, detail="X-Tenant-ID required")
-    return x_tenant_id
-
-
-async def get_tenant_session(
-    session: AsyncSession = Depends(get_db),
-    tenant_id: str = Depends(get_tenant_id),
-) -> AsyncGenerator[AsyncSession, None]:
-    await set_tenant(session, tenant_id)
-    yield session
+def get_inbound_pipeline() -> InboundPipeline:
+    return InboundPipeline()

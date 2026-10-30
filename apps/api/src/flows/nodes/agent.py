@@ -1,7 +1,8 @@
-from flows.engine.fsm import FlowState, Node
+from flows.engine.fsm import FlowState
 
 
-class AgentNode(Node):
+class AgentNode:
+    """Nodo que delega en el agente LLM con herramientas permitidas."""
+
     async def run(self, state: FlowState) -> FlowState:
-        state.node = "end"
-        return state
+        raise NotImplementedError("Pendiente: Fase 2 (docs/05-plan-mejoras.md)")

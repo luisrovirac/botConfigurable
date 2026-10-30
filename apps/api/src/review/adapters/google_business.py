@@ -1,3 +1,5 @@
 class GoogleBusinessProfileAdapter:
-    async def get_review_link(self, **kwargs) -> str:
-        return "https://g.page/review/..."
+    """Google Business Profile."""
+
+    async def get_review_link(self, location_id: str) -> str:
+        raise NotImplementedError("Pendiente: Fase 4 (docs/05-plan-mejoras.md)")
