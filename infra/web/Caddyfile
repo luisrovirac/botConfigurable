@@ -17,10 +17,10 @@
 		reverse_proxy api:8000
 	}
 
-	# Panel (aplicacion de una sola pagina).
+	# Panel (aplicacion de una sola pagina) y paginas estaticas como /privacidad.
 	handle {
 		root * /srv
-		try_files {path} /index.html
+		try_files {path} {path}.html /index.html
 		file_server
 	}
 }

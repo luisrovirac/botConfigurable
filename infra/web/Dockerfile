@@ -11,3 +11,5 @@ RUN npm run build
 FROM caddy:2.10-alpine
 COPY infra/web/Caddyfile /etc/caddy/Caddyfile
 COPY --from=build /web/dist /srv
+# Pagina publica de privacidad (Meta la exige para publicar la app).
+COPY infra/web/privacidad.html /srv/privacidad.html
